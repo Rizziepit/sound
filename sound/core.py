@@ -40,56 +40,69 @@ class VisibleObject(object):
         self.width = width
         self.height = height
         self.dirty = True
+        self.visible = True
 
     def draw(self):
         pass
 
     def render(self, surface):
+        if not self.visible:
+            return
+
         display_width = surface.get_width()
         display_height = surface.get_height()
-        real_width = display_width * 0.5 * self.width
-        real_height = display_width * 0.5 * self.height
-        real_x = (self.x + 1) * (display_width * 0.5) - (real_width / 2.0)
-        real_y = (self.y - 1) * -1 * (display_width * 0.5) - (real_height / 2.0) - (display_width - display_height) / 2.0
-        object_rect = pygame.Rect(real_x, real_y, real_width, real_height)
+        self.real_width = display_width * 0.5 * self.width
+        self.real_height = display_width * 0.5 * self.height
+        self.real_x = (self.x + 1) * (display_width * 0.5) - (self.real_width / 2.0)
+        self.real_y = ((self.y - 1) * -1 * (display_width * 0.5)
+                       - (self.real_height / 2.0)
+                       - (display_width - display_height) / 2.0)
+        object_rect = pygame.Rect(self.real_x, self.real_y,
+                                  self.real_width, self.real_height)
 
         # check if this object is off-screen
         if not object_rect.colliderect(surface.get_rect()):
             return
 
         if self.dirty:
-            self.surface = pygame.Surface((real_width, real_height),
+            self.surface = pygame.Surface((self.real_width, self.real_height),
                                           VisibleObject.DISPLAY_FLAGS)
             self.draw()
             self.dirty = False
 
-        surface.blit(self.surface, (real_x, real_y))
+        surface.blit(self.surface, (self.real_x, self.real_y))
 
 
 class Pulse(UpdateableObject, CollidableObject, VisibleObject):
     '''
     A pulse that increases it's radius
-    over time. Should be removed from
-    the game object list once no longer
-    visible.
+    over time.
     '''
 
     def __init__(self, x, y, speed):
         VisibleObject.__init__(self, x, y, 4, 4)
         self.speed = speed
         self.radius = 0.0
+        self.visible = False
 
     def update(self, delta_time, events):
         self.radius += self.speed * delta_time / 1000.0
         self.dirty = True
 
-    def contains(self, rect):
+    def render(self, surface):
+        self.aspect_ratio = surface.get_width() / surface.get_height()
+
+        if not self.is_outside_world:
+            self.real_radius = surface.get_width() * 0.5 * self.radius
+            super(Pulse, self).render(surface)
+
+    @property
+    def is_outside_world(self):
         # check if all of the four
         # corners are inside the circle
-        for x, y in ((rect.left, rect.top),
-                     (rect.left, rect.bottom),
-                     (rect.right, rect.bottom),
-                     (rect.right, rect.top)):
+        visible_height = 1.0 / self.aspect_ratio
+        for x, y in ((-1, visible_height), (-1, -visible_height),
+                     (1, -visible_height), (1, visible_height)):
             r2 = (x - self.x)**2 + (y - self.y)**2
             if r2 > self.radius**2:
                 return False
@@ -97,7 +110,14 @@ class Pulse(UpdateableObject, CollidableObject, VisibleObject):
         return True
 
     def draw(self):
-        pygame.draw.ellipse(self.surface, (255, 255, 255), pygame.Rect(900-self.radius, 900-self.radius, self.radius*2, self.radius*2))
+        rect = self.surface.get_rect()
+        width = 1 if self.real_radius > 1 else 0
+        pygame.draw.ellipse(self.surface, (255, 255, 255),
+                            pygame.Rect(rect.centerx - self.real_radius,
+                                        rect.centery - self.real_radius,
+                                        self.real_radius * 2,
+                                        self.real_radius * 2),
+                            width)
 
     def collide(self, obj):
         pass

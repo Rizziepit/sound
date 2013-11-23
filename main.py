@@ -7,7 +7,7 @@ from sound import event as s_event
 from sound import core
 
 
-
+DEBUG = True
 pygame.init()
 canvas = Canvas(900, 300, background=(0, 0, 0))
 clock = pygame.time.Clock()
@@ -15,11 +15,19 @@ keys_down = set()
 mouse_down = set()
 objects = [
     core.HiddenObject(0.5, 0.1, 0.1, 0.1, (128, 128, 64)),
-    core.Pulse(0, 0, 10.0)
+    core.Pulse(-0.5, -0.1, 0.1),
+    core.Pulse(0, 0, 0.2),
+    core.Pulse(0, 0, 0.1),
+    core.Pulse(0.3, 0.2, 0.15),
 ]
 visible_objects = filter(lambda x: isinstance(x, core.VisibleObject), objects)
 updateable_objects = filter(lambda x: isinstance(x, core.UpdateableObject), objects)
 collidable_objects = filter(lambda x: isinstance(x, core.CollidableObject), objects)
+
+# show invisible objects in the world
+if DEBUG:
+    for obj in visible_objects:
+        obj.visible = True
 
 
 def handle_events():
