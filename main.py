@@ -4,15 +4,22 @@ import pygame
 from sound.render import Canvas
 from sound.resources import load_image
 from sound import event as s_event
+from sound import core
+
 
 
 pygame.init()
-canvas = Canvas(800, 600)
+canvas = Canvas(900, 300, background=(0, 0, 0))
 clock = pygame.time.Clock()
 keys_down = set()
 mouse_down = set()
 objects = [
+    core.HiddenObject(0.5, 0.1, 0.1, 0.1, (128, 128, 64)),
+    core.Pulse(0, 0, 10.0)
 ]
+visible_objects = filter(lambda x: isinstance(x, core.VisibleObject), objects)
+updateable_objects = filter(lambda x: isinstance(x, core.UpdateableObject), objects)
+collidable_objects = filter(lambda x: isinstance(x, core.CollidableObject), objects)
 
 
 def handle_events():
@@ -87,11 +94,12 @@ if __name__ == '__main__':
         # handle events
         game_events = handle_events()
 
-        for obj in objects:
-            obj.update(delta_time, game_events)
+        for obj in updateable_objects:
+            if isinstance(obj, core.UpdateableObject):
+                obj.update(delta_time, game_events)
 
         canvas.render(
-            objects,
+            visible_objects,
             (('FPS', fps),
              ('Frame time', '%s ms' % delta_time))
         )
