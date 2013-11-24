@@ -186,7 +186,7 @@ class HiddenObject(CollidableObject, VisibleObject):
             [0, 0, 1],
         ])
         unit = self.display_rect.width / self.width
-        bands = 60
+        bands = 80
 
         for pulse in self.pulses:
             for i in range(-bands, 0, 4):

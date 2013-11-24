@@ -9,7 +9,7 @@ from sound import event as s_event
 from sound import core
 
 
-DEBUG = True
+DEBUG = False
 pygame.init()
 canvas = Canvas(900, 900, background=(0, 0, 0))
 clock = pygame.time.Clock()
@@ -24,7 +24,6 @@ collidable_objects = set(filter(lambda x: isinstance(x, core.CollidableObject), 
 # generate some random hidden objects
 for i in range(10):
     angle = random.random() * 2.0 * math.pi
-    print angle
     distance = random.random()
     x = distance * math.cos(angle)
     y = distance * math.sin(angle)
