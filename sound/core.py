@@ -1,15 +1,18 @@
 import math
 
+import numpy
 from numpy.matrixlib import matrix
 import pygame
 
 from sound.utils import intersect_circles
+from sound import event
 
 
 class UpdateableObject(object):
     '''
     Objects that are updated every game loop
     '''
+    dead = False
 
     def update(self, delta_time, events):
         pass
@@ -98,7 +101,7 @@ class VisibleObject(object):
             delattr(self, '_display_rect')
 
     def render(self, surface):
-        if not self.visible:
+        if not self.visible and not getattr(self, 'debug', False):
             return
 
         # check if this object is off-screen
@@ -125,10 +128,13 @@ class Pulse(UpdateableObject, CollidableObject, VisibleObject):
         VisibleObject.__init__(self, x, y, 4, 4)
         self.speed = speed
         self.radius = 0.0
+        self.max_radius = 0.5
         self.visible = False
 
     def update(self, delta_time, events):
         self.radius += self.speed * delta_time / 1000.0
+        if self.radius >= self.max_radius:
+            self.dead = True
         self.dirty = True
 
     def render(self, surface):
@@ -172,40 +178,38 @@ class HiddenObject(CollidableObject, VisibleObject):
         self.pulses = set()
 
     def draw(self):
-        pygame.draw.ellipse(self.surface, (32, 32, 32), self.surface.get_rect())
+        if getattr(self, 'debug', False):
+            pygame.draw.ellipse(self.surface, (32, 32, 32), self.surface.get_rect())
         display_to_object_surface_matrix = matrix([
             [1, 0, -self.display_rect.left],
             [0, 1, -self.display_rect.top],
             [0, 0, 1],
         ])
+        unit = self.display_rect.width / self.width
+        bands = 60
 
         for pulse in self.pulses:
-            unit = self.display_rect.width / self.width
-            radius = pulse.radius * unit
-            arc_rect = self.surface.get_rect().copy()
-            arc_rect.width = radius * 2
-            arc_rect.height = radius * 2
-            arc_rect.center = ((pulse.x - self.x) * unit + self.radius * unit,
-                               (pulse.y - self.y) * -unit + self.radius * unit)
-            width = 2 if radius > 2 else 0
-            bands_half = 20
-            for i in range(-bands_half, bands_half):
-                arc_rect.width = radius * 2 + i
-                arc_rect.height = radius * 2 + i
-                divider = math.sqrt(bands_half + 1.0 + math.fabs(i) - bands_half)
-                colour = [int(c / divider) for c in self.colour]
-                result, points = intersect_circles(pulse.x, pulse.y,
-                                                   self.x, self.y,
-                                                   pulse.radius + i * 0.5 / unit,
-                                                   self.radius)
+            for i in range(-bands, 0, 4):
+                result, points = intersect_circles(
+                    pulse.x, pulse.y,
+                    self.x, self.y,
+                    pulse.radius + i * 0.5 / unit,
+                    self.radius
+                )
                 if not result or points is None:
                     continue
+
+                try:
+                    colour_factor = 1.0 / (math.fabs(i + bands / 2.0))**0.33333
+                    colour = [int(round(c * colour_factor)) for c in self.colour]
+                except ZeroDivisionError:
+                    colour = self.colour
 
                 for p in points:
                     point_on_display = self.world_to_display_matrix * p
                     point_on_surface = (display_to_object_surface_matrix
                                         * point_on_display)
-                    pygame.draw.circle(self.surface, (255, 0, 0),
+                    pygame.draw.circle(self.surface, colour,
                                        (int(round(point_on_surface.item(0))),
                                         int(round(point_on_surface.item(1)))),
                                        1)
@@ -219,5 +223,55 @@ class HiddenObject(CollidableObject, VisibleObject):
             distance_sq = (obj.x - self.x)**2 + (obj.y - self.y)**2
             if distance_sq > (obj.radius + self.radius)**2:
                 return
-            self.pulses.add(obj)
+            if not obj.dead:
+                self.pulses.add(obj)
+            self.dirty = True
+
+
+class Player(CollidableObject, UpdateableObject, VisibleObject):
+
+    def __init__(self, x, y, frequency, pulse_speed=0.2):
+        VisibleObject.__init__(self, x, y, 0.01, 0.01)
+        self.visible = False
+        self.pulse_timer = 0.0
+        self.frequency = frequency
+        self.milliseconds_per_pulse = 1.0 / frequency * 1000.0
+        self.pulse_speed = 0.2
+        self.speed = 0.3
+
+    def draw(self):
+        pygame.draw.circle(self.surface, (255, 0, 0), 
+                           self.surface.get_rect().center, 2)
+
+    def update(self, delta_time, events):
+        # check if it is time to emit a pulse
+        self.pulse_timer += delta_time
+        if self.pulse_timer >= self.milliseconds_per_pulse:
+            self.pulse_timer -= self.milliseconds_per_pulse
+            pygame.event.post(pygame.event.Event(
+                event.ADDPULSE,
+                pulse=Pulse(self.x, self.y, self.pulse_speed)
+            ))
+
+        # calculate movement from keyboard arrows
+        keys_down = events['keys_down']
+        move_vector = numpy.float64([0, 0])
+        # up arrow
+        if 273 in keys_down:
+            move_vector[1] += 1
+        # down arrow
+        if 274 in keys_down:
+            move_vector[1] -= 1
+        # right arrow
+        if 275 in keys_down:
+            move_vector[0] += 1
+        # left arrow
+        if 276 in keys_down:
+            move_vector[0] -= 1
+
+        if move_vector[0] != 0 or move_vector[1] != 0:
+            mag = math.sqrt(move_vector[0]**2 + move_vector[1]**2)
+            move_vector *= (self.speed * delta_time / 1000.0 / mag)
+            self.x += move_vector[0]
+            self.y += move_vector[1]
             self.dirty = True

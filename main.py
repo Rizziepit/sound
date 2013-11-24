@@ -1,33 +1,45 @@
 import sys
+import random
+import math
+
 import pygame
 
 from sound.render import Canvas
-from sound.resources import load_image
 from sound import event as s_event
 from sound import core
 
 
 DEBUG = True
 pygame.init()
-canvas = Canvas(900, 300, background=(0, 0, 0))
+canvas = Canvas(900, 900, background=(0, 0, 0))
 clock = pygame.time.Clock()
 keys_down = set()
 mouse_down = set()
-objects = [
-    core.HiddenObject(0.5, 0.1, 0.05, (0, 255, 255)),
-    core.Pulse(-0.5, -0.1, 0.1),
-    core.Pulse(0, 0, 0.2),
-    core.Pulse(0, 0, 0.1),
-    core.Pulse(0.3, 0.2, 0.15),
-]
-visible_objects = filter(lambda x: isinstance(x, core.VisibleObject), objects)
-updateable_objects = filter(lambda x: isinstance(x, core.UpdateableObject), objects)
-collidable_objects = filter(lambda x: isinstance(x, core.CollidableObject), objects)
+player = core.Player(0, 0, 1.5)
+objects = set([player])
+visible_objects = set(filter(lambda x: isinstance(x, core.VisibleObject), objects))
+updateable_objects = set(filter(lambda x: isinstance(x, core.UpdateableObject), objects))
+collidable_objects = set(filter(lambda x: isinstance(x, core.CollidableObject), objects))
+
+# generate some random hidden objects
+for i in range(10):
+    angle = random.random() * 2.0 * math.pi
+    print angle
+    distance = random.random()
+    x = distance * math.cos(angle)
+    y = distance * math.sin(angle)
+    radius = random.random() * 0.2 + 0.05
+    colour = (random.randint(0, 255),
+              random.randint(0, 255),
+              random.randint(0, 255))
+    obj = core.HiddenObject(x, y, radius, colour)
+    objects.add(obj)
+    visible_objects.add(obj)
+    collidable_objects.add(obj)
 
 # show invisible objects in the world
-if DEBUG:
-    for obj in visible_objects:
-        obj.visible = True
+for obj in objects:
+    obj.debug = DEBUG
 
 
 def handle_events():
@@ -39,7 +51,8 @@ def handle_events():
     mouse drags, mouse clicks and key presses are added
     to the game events dict.
     '''
-    game_events = {}
+    game_events = {'keys_down': keys_down,
+                   'mouse_down': mouse_down}
 
     for event in pygame.event.get():
         # handle window events
@@ -47,6 +60,12 @@ def handle_events():
             sys.exit()
         elif event.type == pygame.VIDEORESIZE:
             canvas.handle_resize(event.w, event.h)
+        # special game-logic event - might move out later
+        elif event.type == s_event.ADDPULSE:
+            event.pulse.debug = DEBUG
+            for li in (objects, visible_objects, updateable_objects,
+                       collidable_objects):
+                li.add(event.pulse)
         # handle game events
         else:
             game_events.setdefault(event.type, [])
@@ -102,14 +121,19 @@ if __name__ == '__main__':
         # handle events
         game_events = handle_events()
 
+        dead_objects = []
+
         for obj in updateable_objects:
             if isinstance(obj, core.UpdateableObject):
                 obj.update(delta_time, game_events)
+                if obj.dead:
+                    dead_objects.append(obj)
 
-        for i in range(len(collidable_objects)):
-            obj1 = collidable_objects[i]
-            for j in range(i + 1, len(collidable_objects)):
-                obj2 = collidable_objects[j]
+        collidable_list = list(collidable_objects)
+        for i in range(len(collidable_list)):
+            obj1 = collidable_list[i]
+            for j in range(i + 1, len(collidable_list)):
+                obj2 = collidable_list[j]
                 obj1.collide(obj2)
                 obj2.collide(obj1)
 
@@ -118,3 +142,14 @@ if __name__ == '__main__':
             (('FPS', fps),
              ('Frame time', '%s ms' % delta_time))
         )
+
+        # remove dead objects
+        for obj in dead_objects:
+            if isinstance(obj, core.UpdateableObject):
+                updateable_objects.remove(obj)
+            if isinstance(obj, core.CollidableObject):
+                collidable_objects.remove(obj)
+            if isinstance(obj, core.VisibleObject):
+                visible_objects.remove(obj)
+            objects.remove(obj)
+
