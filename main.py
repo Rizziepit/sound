@@ -14,7 +14,7 @@ clock = pygame.time.Clock()
 keys_down = set()
 mouse_down = set()
 objects = [
-    core.HiddenObject(0.5, 0.1, 0.1, 0.1, (128, 128, 64)),
+    core.HiddenObject(0.5, 0.1, 0.05, (0, 255, 255)),
     core.Pulse(-0.5, -0.1, 0.1),
     core.Pulse(0, 0, 0.2),
     core.Pulse(0, 0, 0.1),
@@ -105,6 +105,13 @@ if __name__ == '__main__':
         for obj in updateable_objects:
             if isinstance(obj, core.UpdateableObject):
                 obj.update(delta_time, game_events)
+
+        for i in range(len(collidable_objects)):
+            obj1 = collidable_objects[i]
+            for j in range(i + 1, len(collidable_objects)):
+                obj2 = collidable_objects[j]
+                obj1.collide(obj2)
+                obj2.collide(obj1)
 
         canvas.render(
             visible_objects,

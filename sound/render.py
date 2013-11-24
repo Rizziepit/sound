@@ -22,6 +22,7 @@ class Canvas(object):
     def render(self, objects=[], stats=[]):
         self.render_background()
         for obj in objects:
+            obj.pre_render(self.surface)
             obj.render(self.surface)
         if stats:
             self.render_stats(stats)
