@@ -37,7 +37,7 @@ class VisibleObject(object):
     def __init__(self, x, y, width, height):
         '''
         x: float, x coordinate in world, range (-1, 1) is on screen
-        y: float, y coordinate in world, range (-1, 1) is on screen
+        y: float, y coordinate in world, range (-1 / aspect, 1 / aspect) is on screen
         width: float, width in world, scale 1:half_of_display
         height: float, height in world, scale 1:half_of_display
         '''
@@ -231,7 +231,7 @@ class HiddenObject(CollidableObject, VisibleObject):
 class Player(CollidableObject, UpdateableObject, VisibleObject):
 
     def __init__(self, x, y, frequency, pulse_speed=0.2):
-        VisibleObject.__init__(self, x, y, 0.01, 0.01)
+        VisibleObject.__init__(self, x, y, 0.02, 0.02)
         self.visible = False
         self.pulse_timer = 0.0
         self.frequency = frequency
@@ -241,7 +241,7 @@ class Player(CollidableObject, UpdateableObject, VisibleObject):
 
     def draw(self):
         pygame.draw.circle(self.surface, (255, 0, 0), 
-                           self.surface.get_rect().center, 2)
+                           self.surface.get_rect().center, 4)
 
     def update(self, delta_time, events):
         # check if it is time to emit a pulse

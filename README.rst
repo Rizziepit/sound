@@ -1,0 +1,1 @@
+Disclaimer: This is an experiment. It should be converted to use OpenGL with a list of colliding pulses being fed to the shader rather.

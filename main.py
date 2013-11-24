@@ -15,19 +15,19 @@ canvas = Canvas(900, 900, background=(0, 0, 0))
 clock = pygame.time.Clock()
 keys_down = set()
 mouse_down = set()
-player = core.Player(0, 0, 1.5)
+player = core.Player(0, 0, 1.6)
 objects = set([player])
 visible_objects = set(filter(lambda x: isinstance(x, core.VisibleObject), objects))
 updateable_objects = set(filter(lambda x: isinstance(x, core.UpdateableObject), objects))
 collidable_objects = set(filter(lambda x: isinstance(x, core.CollidableObject), objects))
 
 # generate some random hidden objects
-for i in range(10):
+for i in range(20):
     angle = random.random() * 2.0 * math.pi
     distance = random.random()
     x = distance * math.cos(angle)
     y = distance * math.sin(angle)
-    radius = random.random() * 0.2 + 0.05
+    radius = random.random() * 0.1 + 0.05
     colour = (random.randint(0, 255),
               random.randint(0, 255),
               random.randint(0, 255))
@@ -79,12 +79,18 @@ def handle_events():
                     # handle window escape event
                     if event.key == 27:
                         sys.exit()
-                    game_events.setdefault(s_event.KEYPRESS, [])
-                    game_events[s_event.KEYPRESS].append(
-                        pygame.event.Event(s_event.KEYPRESS,
-                                           key=event.key,
-                                           mod=event.mod)
-                    )
+                    elif event.key == 100:  # toggles debug
+                        globals()['DEBUG'] = (not DEBUG)
+                        for obj in objects:
+                            obj.debug = DEBUG
+                            obj.dirty = True
+                    else:
+                        game_events.setdefault(s_event.KEYPRESS, [])
+                        game_events[s_event.KEYPRESS].append(
+                            pygame.event.Event(s_event.KEYPRESS,
+                                               key=event.key,
+                                               mod=event.mod)
+                        )
             # track MOUSEBUTTONDRAG and MOUSEBUTTONCLICK events
             # MOUSEBUTTONDRAG: MOUSEBUTTONDOWN + MOUSEMOTION
             # MOUSEBUTTONCLICK: MOUSEBUTTONDOWN + MOUSEBUTTONUP
